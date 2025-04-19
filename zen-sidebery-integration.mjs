@@ -7,7 +7,6 @@ var { promiseEvent } = ExtensionUtils;
 
 let sidebery_policy;
 let sidebery_browser;
-let init_sidebery_browser;
 let sidebery_url;
 let sidebery_extension;
 let oldTabsContainer;
@@ -51,23 +50,16 @@ async function setupSideberyPanel(win) {
     // extension pages from the same addon.
     sidebery_browser.setAttribute("initialBrowsingContextGroupId", sidebery_policy.browsingContextGroupId);
 
-
-    //make it not remote
-    //sidebery_browser.setAttribute("remote", "false");
-
-    // make it remote:
+    // make it remote - simply does not work otherwise
     sidebery_browser.setAttribute("remote", "true");
     sidebery_browser.setAttribute("remoteType", "extension"); // sidebery needs this to access windows
-    //sidebery_browser.setAttribute("maychangeremoteness", "true");
+    //sidebery_browser.setAttribute("maychangeremoteness", "true"); // it won't
 
-
-
+    // load dynamically instead
     //sidebery_browser.setAttribute("src", sidebery_url); //moz-extension://975176be-3729-46a4-84fc-204e044f42d3/sidebar/sidebar.html
-    //sidebery_browser.setAttribute("homepage", sidebery_url);
-    //sidebery_browser.setAttribute("src", "chrome://browser/content/webext-panels.xhtml");
 
 
-    //sidebery_browser.addEventListener("XULFrameLoaderCreated", () => loadSideberyPanel(win), true);
+    //only seems to work as a promiseEvent, not a normal event handler
     awaitFrameLoader = promiseEvent(browser, "XULFrameLoaderCreated");
 
     // time to insert, <browser> will be constructed
@@ -82,6 +74,8 @@ async function setupSideberyPanel(win) {
 function loadSideberyPanel(win) {
     console.log("3. Loading Sidebery into frame...");
     oldTabsContainer.style.display = "none";
+
+    // Zen's bars are right next to Sidebery's, looks ugly with both - hide Zen's for now, buttons can be moved elsewhere
     win.document.getElementById("zen-sidebar-bottom-buttons").style.display = "none";
     win.document.getElementById("zen-sidebar-top-buttons").style.display = "none";
 
@@ -115,8 +109,9 @@ function loadSideberyPanel(win) {
 }
 
 
-function getZenThemeAsCSS() {
-    const rootStyle = getComputedStyle(window.document.documentElement);
+function getZenCSSVariables() {
+    // see if this is needed for dynamic updates
+    const rootStyle = getComputedStyle(window.document.getElementById("tabbrowser-tabs"));
     let css = '';
     for (const property of rootStyle) {
         if (property.startsWith("--zen-")) {
@@ -126,7 +121,66 @@ function getZenThemeAsCSS() {
     return `:root {\n${css}\n}`;
 }
 
-function afterSideberyLoads() {
+const fixTextSelectable = // fixes bug #1
+    `
+    #root.root {
+        user-select: none; 
+    }
+`
+
+const fixNoGrabbingCursorOnDrag = // attempt to fix bug #3
+    `
+    #root.root[data-drag="true"], #root.root[data-drag="true"] .AnimatedTabList *, #root.root[data-drag="true"] .Tab, #root.root[data-drag="true"] .drag_image, #root.root[data-drag="true"] .pointer {
+        cursor: grabbing !important;
+    }
+`
+
+const transparentByDefault = //fixes bug #2
+    `
+    :root {background-color: transparent;}
+
+    #root.root {
+        --general-border-radius: var(--zen-border-radius);
+        --frame-bg: transparent;
+        --toolbar-bg: transparent;
+    }
+`
+
+const fixInheritBadBrowserStyles = // some zen/ff styles make things worse, put it back
+    `
+:root {
+  &:not([chromehidden~="toolbar"]) {
+    min-width: revert !important; /* was 450px in chrome://browser/skin/browser-shared.css -- too wide */
+    min-height: revert; /* was 120px in chrome://browser/skin/browser-shared.css  -- let sidebery decide */
+  }
+}
+html {
+    border: 4px solid red;
+}
+`
+const fixWidthRoundingUp = // Zen's sidebar tends to have non-integer width (like 356.667), but the sidebery frame's width is a rounded version, causing it to be cut off by a fraction of a pixel
+    `
+:root {
+    box-sizing: border-box;
+}
+html {
+    border: 4px solid red;
+}
+`
+
+
+const zenStylesByDefault = // fixes bug #4
+    `
+    #root.root {
+        --general-border-radius: var(--zen-border-radius);
+    }
+`
+
+
+
+allStyleMods = [fixTextSelectable, fixNoGrabbingCursorOnDrag, transparentByDefault, fixInheritBadBrowserStyles, zenStylesByDefault]
+
+function afterSideberyLoads(win) {
     console.log("5. Sidebery has loaded! Inserting scripts and styles.");
     sidebery_browser.messageManager.loadFrameScript(
         "chrome://extensions/content/ext-browser-content.js",
@@ -142,15 +196,12 @@ function afterSideberyLoads() {
         sidebery_browser
     );
 
+    const zenStylesheets = [...win.document.styleSheets].map((styleSheet) => { return styleSheet.href; })
+    const allStyleModsAsDataURLs = allStyleMods.map((css) => `data:text/css,${encodeURIComponent(css)}`);
 
-
-
-
-    let stylesheets = ["chrome://browser/content/zen-styles/zen-theme.css"];
+    let stylesheets = [...zenStylesheets, "chrome://browser/content/extension.css", ...allStyleModsAsDataURLs].filter(sheet => sheet); //discard nulls
+    console.log(stylesheets);
     sidebery_browser.messageManager.sendAsyncMessage("Extension:InitBrowser", { stylesheets });
-
-
-
 
 
 
