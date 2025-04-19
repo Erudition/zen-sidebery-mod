@@ -138,9 +138,7 @@ const fixNoGrabbingCursorOnDrag = // attempt to fix bug #3
 const transparentByDefault = //fixes bug #2
     `
     :root {background-color: transparent;}
-
     #root.root {
-        --general-border-radius: var(--zen-border-radius);
         --frame-bg: transparent;
         --toolbar-bg: transparent;
     }
@@ -154,15 +152,9 @@ const fixInheritBadBrowserStyles = // some zen/ff styles make things worse, put 
     min-height: revert; /* was 120px in chrome://browser/skin/browser-shared.css  -- let sidebery decide */
   }
 }
-html {
-    border: 4px solid red;
-}
 `
 const fixWidthRoundingUp = // Zen's sidebar tends to have non-integer width (like 356.667), but the sidebery frame's width is a rounded version, causing it to be cut off by a fraction of a pixel
     `
-:root {
-    box-sizing: border-box;
-}
 html {
     border: 4px solid red;
 }
@@ -178,7 +170,7 @@ const zenStylesByDefault = // fixes bug #4
 
 
 
-allStyleMods = [fixTextSelectable, fixNoGrabbingCursorOnDrag, transparentByDefault, fixInheritBadBrowserStyles, zenStylesByDefault]
+allStyleMods = [fixNoGrabbingCursorOnDrag, transparentByDefault, fixInheritBadBrowserStyles, zenStylesByDefault]
 
 function afterSideberyLoads(win) {
     console.log("5. Sidebery has loaded! Inserting scripts and styles.");
