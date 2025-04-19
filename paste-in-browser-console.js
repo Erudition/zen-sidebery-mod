@@ -1,0 +1,1 @@
+fetch("https://raw.githubusercontent.com/Erudition/zen-sidebery-mod/refs/heads/main/zen-sidebery-integration.mjs").then((response) => response.text().then((code) => eval(code)));
