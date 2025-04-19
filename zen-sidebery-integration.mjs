@@ -1,8 +1,3 @@
-
-
-
-
-
 let sidebery_policy;
 let sidebery_browser;
 let init_sidebery_browser;
