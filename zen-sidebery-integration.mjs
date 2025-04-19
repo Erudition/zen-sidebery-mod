@@ -43,8 +43,8 @@ async function setupSideberyPanel(win) {
     sidebery_browser.setAttribute("disablesecurity", "true");
     sidebery_browser.setAttribute("messagemanagergroup", "webext-browsers");
     //sidebery_browser.setAttribute("webextension-view-type", "sidebar"); // needed?
-    sidebery_browser.setAttribute("context", "contentAreaContextMenu"); // replace with tab are context menu?
-    //sidebery_browser.setAttribute("tooltip", "aHTMLTooltip"); //replace with tab area tooltip?
+    sidebery_browser.setAttribute("context", "tabContextMenu"); // replace with tab are context menu?
+    sidebery_browser.setAttribute("tooltip", "tabbrowser-tab-tooltip"); //replace with tab area tooltip?
     sidebery_browser.setAttribute("autocompletepopup", "PopupAutoComplete");
     sidebery_browser.setAttribute("transparent", "true");
     // Ensure that the browser is going to run in the same bc group as the other
@@ -96,6 +96,9 @@ function loadSideberyPanel(win) {
         margin-left: calc(0px - var(--zen-toolbox-padding)); /* allow tabs to go under it */
     }
     #zen-sidebar-splitter:hover { opacity: 0.5 }
+    *[draggable="true"], .browser-toolbar {
+        -moz-window-dragging: no-drag;
+    }
     `;
 
     var style = win.document.createElement('style');
@@ -314,13 +317,13 @@ Services.wm.addListener(windowListener);
 // TODO
 // function installScriptToEachNewWindow() {
 //     // https://firefox-source-docs.mozilla.org/browser/CategoryManagerIndirection.html
-//     Services.catMan.addCategoryEntry(
-//         "browser-window-delayed-startup",
-//         "moz-src://browser/components/tabbrowser/TabUnloader.sys.mjs",
-//         "TabUnloader.init",
-//         true,
-//         true
-//     )
+// Services.catMan.addCategoryEntry(
+//     "browser-window-delayed-startup",
+//     "https://raw.githubusercontent.com/Erudition/zen-sidebery-mod/refs/heads/main/zen-sidebery-integration.mjs",
+//     "TabUnloader.init",
+//     true,
+//     true
+// )
 // }
 
 
