@@ -6,26 +6,19 @@ const { ExtensionUtils } = ChromeUtils.importESModule(
 var { promiseEvent } = ExtensionUtils;
 
 let sidebery_policy;
-let sidebery_browser;
 let sidebery_url;
 let sidebery_extension;
-let oldTabsContainer;
 
-function getSideberyExtension() {
-    // Fetch first extension matching the name if any
-    sidebery_policy = WebExtensionPolicy.getActiveExtensions().filter((ext) => ext.name == "Sidebery")[0];
-    if (sidebery_policy) {
-        sidebery_extension = sidebery_policy.extension;
-        sidebery_url = sidebery_extension.manifest.sidebar_action.default_panel;
 
-        sidebery_policy.baseCSP = "script-src 'self' https://* http://localhost:* http://127.0.0.1:* moz-extension: chrome: blob: filesystem: 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' chrome:;"
+// Fetch first extension matching the name if any
+sidebery_policy = WebExtensionPolicy.getActiveExtensions().filter((ext) => ext.name == "Sidebery")[0];
+if (sidebery_policy) {
+    sidebery_extension = sidebery_policy.extension;
+    sidebery_url = sidebery_extension.manifest.sidebar_action.default_panel;
 
-        console.log("1. Found Sidebery extension.");
-        return sidebery_policy;
-    } else {
-        alert("Sidebery Extension could not be found - is it installed and enabled?");
-        return null;
-    }
+    sidebery_policy.baseCSP = "script-src 'self' https://* http://localhost:* http://127.0.0.1:* moz-extension: chrome: blob: filesystem: 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' chrome:;"
+
+    console.log("1. Found Sidebery extension.");
 }
 
 
@@ -33,47 +26,46 @@ function getSideberyExtension() {
 async function setupSideberyPanel(win) {
     // add a separate <browser> element outside of sidebar
     // https://udn.realityripple.com/docs/Archive/Mozilla/XUL/browser
-    sidebery_browser = win.document.createXULElement("browser");
-    sidebery_browser.setAttribute("id", "sidebery");
-    sidebery_browser.setAttribute("type", "content");
-    sidebery_browser.setAttribute("flex", "1");
-    sidebery_browser.setAttribute("disableglobalhistory", "true");
-    sidebery_browser.setAttribute("disablehistory", "true");
-    sidebery_browser.setAttribute("disablesecurity", "true");
-    sidebery_browser.setAttribute("messagemanagergroup", "webext-browsers");
-    //sidebery_browser.setAttribute("webextension-view-type", "sidebar"); // needed?
-    sidebery_browser.setAttribute("context", "tabContextMenu"); // replace with tab are context menu?
-    sidebery_browser.setAttribute("tooltip", "tabbrowser-tab-tooltip"); //replace with tab area tooltip?
-    sidebery_browser.setAttribute("autocompletepopup", "PopupAutoComplete");
-    sidebery_browser.setAttribute("transparent", "true");
+    win.sidebery_browser = win.document.createXULElement("browser");
+    win.sidebery_browser.setAttribute("id", "sidebery");
+    win.sidebery_browser.setAttribute("type", "content"); // try content-primary for direct access?
+    win.sidebery_browser.setAttribute("flex", "1");
+    win.sidebery_browser.setAttribute("disableglobalhistory", "true");
+    win.sidebery_browser.setAttribute("disablehistory", "true");
+    win.sidebery_browser.setAttribute("disablesecurity", "true");
+    win.sidebery_browser.setAttribute("messagemanagergroup", "webext-browsers");
+    //win.sidebery_browser.setAttribute("webextension-view-type", "sidebar"); // needed?
+    win.sidebery_browser.setAttribute("context", "tabContextMenu"); // replace with tab are context menu?
+    win.sidebery_browser.setAttribute("tooltip", "tabbrowser-tab-tooltip"); //replace with tab area tooltip?
+    win.sidebery_browser.setAttribute("autocompletepopup", "PopupAutoComplete");
+    win.sidebery_browser.setAttribute("transparent", "true");
     // Ensure that the browser is going to run in the same bc group as the other
     // extension pages from the same addon.
-    sidebery_browser.setAttribute("initialBrowsingContextGroupId", sidebery_policy.browsingContextGroupId);
+    win.sidebery_browser.setAttribute("initialBrowsingContextGroupId", sidebery_policy.browsingContextGroupId);
 
     // make it remote - simply does not work otherwise
-    sidebery_browser.setAttribute("remote", "true");
-    sidebery_browser.setAttribute("remoteType", "extension"); // sidebery needs this to access windows
-    //sidebery_browser.setAttribute("maychangeremoteness", "true"); // it won't
+    win.sidebery_browser.setAttribute("remote", "true");
+    win.sidebery_browser.setAttribute("remoteType", "extension"); // sidebery needs this to access windows
+    //win.sidebery_browser.setAttribute("maychangeremoteness", "true"); // it won't
 
     // load dynamically instead
-    //sidebery_browser.setAttribute("src", sidebery_url); //moz-extension://975176be-3729-46a4-84fc-204e044f42d3/sidebar/sidebar.html
+    //win.sidebery_browser.setAttribute("src", sidebery_url); //moz-extension://975176be-3729-46a4-84fc-204e044f42d3/sidebar/sidebar.html
 
 
     //only seems to work as a promiseEvent, not a normal event handler
-    awaitFrameLoader = promiseEvent(browser, "XULFrameLoaderCreated");
+    awaitFrameLoader = promiseEvent(win.sidebery_browser, "XULFrameLoaderCreated");
 
     // time to insert, <browser> will be constructed
     oldTabsContainer = win.document.querySelector("#TabsToolbar-customization-target");
-    oldTabsContainer.insertAdjacentElement('beforebegin', sidebery_browser);
+    oldTabsContainer.insertAdjacentElement('beforebegin', win.sidebery_browser);
     console.log("2. Sidebery's browser frame element has been set up.");
     await awaitFrameLoader;
-
+    oldTabsContainer.style.display = "none";
     loadSideberyPanel(win);
 }
 
 function loadSideberyPanel(win) {
     console.log("3. Loading Sidebery into frame...");
-    oldTabsContainer.style.display = "none";
 
     // Zen's bars are right next to Sidebery's, looks ugly with both - hide Zen's for now, buttons can be moved elsewhere
     win.document.getElementById("zen-sidebar-bottom-buttons").style.display = "none";
@@ -81,8 +73,8 @@ function loadSideberyPanel(win) {
 
     // System Principal should let Sidebery do anything chrome can do, so it's legit native
     let triggeringPrincipal = Services.scriptSecurityManager.getSystemPrincipal();
-    sidebery_browser.loadURI(Services.io.newURI(sidebery_url), { triggeringPrincipal });
-    // sidebery_browser.addEventListener("load", afterSideberyLoads, true);
+    win.sidebery_browser.loadURI(Services.io.newURI(sidebery_url), { triggeringPrincipal });
+    // win.sidebery_browser.addEventListener("load", afterSideberyLoads, true);
 
     const css = `
     #zen-sidebar-splitter { 
@@ -115,18 +107,17 @@ function loadSideberyPanel(win) {
 }
 
 
-function getZenCSSVariables() {
-    // see if this is needed for dynamic updates
-    const rootStyle = getComputedStyle(window.document.getElementById("tabbrowser-tabs"));
-    let css = '';
-    for (const property of rootStyle) {
-        if (property.startsWith("--zen-")) {
-            css += `${property}: ${rootStyle.getPropertyValue(property).trim()};\n`;
-        }
-    }
-    return `:root {\n${css}\n}`;
-}
-
+// function getZenCSSVariables() {
+//     // TODO see if this is needed for dynamic updates
+//     const rootStyle = getComputedStyle(window.document.getElementById("tabbrowser-tabs"));
+//     let css = '';
+//     for (const property of rootStyle) {
+//         if (property.startsWith("--zen-")) {
+//             css += `${property}: ${rootStyle.getPropertyValue(property).trim()};\n`;
+//         }
+//     }
+//     return `:root {\n${css}\n}`;
+// }
 
 
 const fixNoGrabbingCursorOnDrag = // attempt to fix bug #3
@@ -147,27 +138,28 @@ const transparentByDefault = //fixes bug #2
 
 const fixInheritBadBrowserStyles = // some zen/ff styles make things worse, put it back
     `
-:root {
-  &:not([chromehidden~="toolbar"]) {
-    min-width: revert !important; /* was 450px in chrome://browser/skin/browser-shared.css -- too wide */
-    min-height: revert; /* was 120px in chrome://browser/skin/browser-shared.css  -- let sidebery decide */
-  }
-}
+    :root {
+        &:not([chromehidden~="toolbar"]) {
+            min-width: revert !important; /* was 450px in chrome://browser/skin/browser-shared.css -- too wide */
+            min-height: revert; /* was 120px in chrome://browser/skin/browser-shared.css  -- let sidebery decide */
+        }
+    }
 
-@media not (forced-colors) {
-  .close-icon:hover {
-    background-color: revert;
-  }
-}
+    @media not (forced-colors) {
+        .close-icon:hover {
+            background-color: revert;
+        }
+    }
 
-.close-icon {
-  border-radius: revert;
-  padding: revert;
-  width: revert;
-  height: revert;
-  outline: revert;
-}
+    .close-icon {
+        border-radius: revert;
+        padding: revert;
+        width: revert;
+        height: revert;
+        outline: revert;
+    }
 `
+
 
 const handleCompactMode = //collapsed toolbar goes down to 48px - hide nesting
     `
@@ -191,7 +183,6 @@ const handleCompactMode = //collapsed toolbar goes down to 48px - hide nesting
 }
 
 `
-
 
 
 // const fixWidthRoundingUp = // Zen's sidebar tends to have non-integer width (like 356.667), but the sidebery frame's width is a rounded version, causing it to be cut off by a fraction of a pixel
@@ -239,7 +230,7 @@ allStyleMods = [fixNoGrabbingCursorOnDrag, transparentByDefault, fixInheritBadBr
 
 function afterSideberyLoads(win) {
     console.log("5. Sidebery has loaded! Inserting scripts and styles.");
-    sidebery_browser.messageManager.loadFrameScript(
+    win.sidebery_browser.messageManager.loadFrameScript(
         "chrome://extensions/content/ext-browser-content.js",
         false,
         true
@@ -250,7 +241,7 @@ function afterSideberyLoads(win) {
 
     ExtensionParent.apiManager.emit(
         "extension-browser-inserted",
-        sidebery_browser
+        win.sidebery_browser
     );
 
     const zenStylesheets = [...win.document.styleSheets].map((styleSheet) => { return styleSheet.href; });
@@ -258,11 +249,11 @@ function afterSideberyLoads(win) {
 
     let stylesheets = [...zenStylesheets, "chrome://browser/content/extension.css", ...allStyleModsAsDataURLs].filter(sheet => sheet); //discard nulls
     console.log(stylesheets);
-    sidebery_browser.messageManager.sendAsyncMessage("Extension:InitBrowser", { stylesheets });
+    win.sidebery_browser.messageManager.sendAsyncMessage("Extension:InitBrowser", { stylesheets });
 
 
     //keep inner browser zoom in sync with outer - TODO test 
-    sidebery_browser.addEventListener(
+    win.sidebery_browser.addEventListener(
         "DoZoomEnlargeBy10",
         () => {
             let { ZoomManager } = browser.ownerGlobal;
@@ -276,7 +267,7 @@ function afterSideberyLoads(win) {
         }, true
     );
 
-    sidebery_browser.addEventListener(
+    win.sidebery_browser.addEventListener(
         "DoZoomReduceBy10",
         () => {
             let { ZoomManager } = browser.ownerGlobal;
@@ -291,14 +282,10 @@ function afterSideberyLoads(win) {
     );
 
     // ignore window close command
-    sidebery_browser.addEventListener("DOMWindowClose", event => { event.stopPropagation(); });
-
+    win.sidebery_browser.addEventListener("DOMWindowClose", event => { event.stopPropagation(); });
 
     console.log("6. Sidebery mod complete.");
 }
-
-
-
 
 function sideberyMissing(win) {
     let spotlight = {
@@ -363,50 +350,59 @@ function sideberyMissing(win) {
     ASRouter.routeCFRMessage(spotlight, win, spotlight.trigger, true);
 }
 
-
-
-
-
-
 function setup(win = window) {
-    if (getSideberyExtension()) {
-        installInWindow(win);
-    } else {
-        sideberyMissing();
-    }
-
-}
-
-function installInWindow(win) {
     if (sidebery_policy) {
         setupSideberyPanel(win);
     } else {
         sideberyMissing();
     }
-
 }
 
+// apply to new windows
+// windowListener = {
+//     onOpenWindow(xulWindow) {
+//         const win = xulWindow.docShell.domWindow;
+//         win.addEventListener(
+//             "load",
+//             function () {
+//                 if (
+//                     win.document.documentElement.getAttribute("id") != "main-window"
+//                 ) {
+//                     return;
+//                 }
+//                 // Found the window
+//                 setupSideberyPanel(win);
+//             },
+//             { once: false }
+//         );
+//     },
+//     onCloseWindow() { },
+// };
+// Services.wm.addListener(windowListener);
 
-windowListener = {
-    onOpenWindow(xulWindow) {
-        const win = xulWindow.docShell.domWindow;
-        win.addEventListener(
-            "load",
-            function () {
-                if (
-                    win.document.documentElement.getAttribute("id") != "main-window"
-                ) {
-                    return;
-                }
-                // Found the window
-                //Services.wm.removeListener(windowListener);
-                //alert("Found new window");
-                setup(win);
-            },
-            { once: false }
-        );
+
+var { Cc: classes, Ci: interfaces } = Components;
+var windowListener = {
+    onOpenWindow: function (aWindow) {
+        // Wait for the window to finish loading
+        let domWindow = aWindow.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowInternal || Ci.nsIDOMWindow);
+        console.log("new Window detected. Waiting for it to load...");
+        console.log(domWindow);
+        domWindow.addEventListener("load", function () {
+            if (domWindow.document.documentElement.getAttribute("windowtype") == "navigator:browser") {
+                domWindow.removeEventListener("load", arguments.callee, false); //this removes this load function from the window
+                console.log("New navigator Window loaded! Injecting sidebery.");
+                console.log(domWindow);
+                setupSideberyPanel(domWindow);
+            } else {
+                console.log("It's not a navigator window. Not injecting Sidebery.")
+            }
+        }, false);
+
+
     },
-    onCloseWindow() { },
+    onCloseWindow: function (aWindow) { },
+    onWindowTitleChange: function (aWindow, aTitle) { }
 };
 Services.wm.addListener(windowListener);
 
