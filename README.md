@@ -18,3 +18,8 @@ The effect only lasts until the end of your browsing session. However, you could
 
 # Alpha
 Please report any issues. If you love it, give this repo a star!
+
+# Sidebery setup
+- For now, make sure "Use Native Context Menu" is unchecked.
+- Remove all but the Default Workspace in Zen - else you can still toggle them with mousewheel tilts and shortcuts accidentally. Sidebery's workspaces (panels) are superior.
+- Before applying, use Zen's "Customize Toolbar" to move any buttons you've placed in the left panel (top or bottom) somewhere else in the chrome. Sidebery has it's own top and bottom bar, which can't be moved elsewhere, and having double bars does not look very Zen.
