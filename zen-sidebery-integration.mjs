@@ -93,6 +93,12 @@ function loadSideberyPanel(win) {
     *[draggable="true"], .browser-toolbar {
         -moz-window-dragging: no-drag;
     }
+
+    #navigator-toolbox:not([zen-sidebar-expanded="true"]) {
+        & #titlebar {
+            display: revert; /* was grid for compact mode */
+        }
+    }
     `;
 
     var style = win.document.createElement('style');
@@ -163,6 +169,31 @@ const fixInheritBadBrowserStyles = // some zen/ff styles make things worse, put 
 }
 `
 
+const handleCompactMode = //collapsed toolbar goes down to 48px - hide nesting
+    `
+@media screen and (max-width: 50px) {
+    .Tab[data-lvl] {
+        padding-left: 0;
+    }
+
+    .NavigationBar .static-btns {
+        flex-direction: column;
+    }
+
+    .NavigationBar .main-items {
+        display: none;
+    }
+
+    .BottomBar {
+        display:none;
+    }
+
+}
+
+`
+
+
+
 // const fixWidthRoundingUp = // Zen's sidebar tends to have non-integer width (like 356.667), but the sidebery frame's width is a rounded version, causing it to be cut off by a fraction of a pixel
 //     `
 // html {
@@ -204,7 +235,7 @@ const zenStylesByDefault = // fixes bug #4
 
 
 
-allStyleMods = [fixNoGrabbingCursorOnDrag, transparentByDefault, fixInheritBadBrowserStyles, zenStylesByDefault]
+allStyleMods = [fixNoGrabbingCursorOnDrag, transparentByDefault, fixInheritBadBrowserStyles, zenStylesByDefault, handleCompactMode]
 
 function afterSideberyLoads(win) {
     console.log("5. Sidebery has loaded! Inserting scripts and styles.");
@@ -228,17 +259,6 @@ function afterSideberyLoads(win) {
     let stylesheets = [...zenStylesheets, "chrome://browser/content/extension.css", ...allStyleModsAsDataURLs].filter(sheet => sheet); //discard nulls
     console.log(stylesheets);
     sidebery_browser.messageManager.sendAsyncMessage("Extension:InitBrowser", { stylesheets });
-
-
-
-    // const splitter = document.getElementById("zen-sidebar-splitter");
-    // splitter.style.marginLeft = "calc(0px - var(--zen-toolbox-padding))";
-    // splitter.style.opacity = "var(--dynamic-splitter-opacity)";
-    // splitter.style.backgroundColor = "var(--zen-colors-border)";
-    // .Tab[data-active="true"] {
-    // z-index: 20;
-    // margin-right: -24px;
-    // width: 100%;
 
 
     //keep inner browser zoom in sync with outer - TODO test 

@@ -1,3 +1,5 @@
+// Experimenting with future messaging.
+
 const { InfoBar } = ChromeUtils.importESModule("resource:///modules/asrouter/InfoBar.sys.mjs");
 const { FeatureCalloutBroker } = ChromeUtils.importESModule("resource:///modules/asrouter/FeatureCalloutBroker.sys.mjs");
 
