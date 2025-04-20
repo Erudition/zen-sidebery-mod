@@ -121,12 +121,7 @@ function getZenCSSVariables() {
     return `:root {\n${css}\n}`;
 }
 
-const fixTextSelectable = // fixes bug #1
-    `
-    #root.root {
-        user-select: none; 
-    }
-`
+
 
 const fixNoGrabbingCursorOnDrag = // attempt to fix bug #3
     `
@@ -152,19 +147,58 @@ const fixInheritBadBrowserStyles = // some zen/ff styles make things worse, put 
     min-height: revert; /* was 120px in chrome://browser/skin/browser-shared.css  -- let sidebery decide */
   }
 }
-`
-const fixWidthRoundingUp = // Zen's sidebar tends to have non-integer width (like 356.667), but the sidebery frame's width is a rounded version, causing it to be cut off by a fraction of a pixel
-    `
-html {
-    border: 4px solid red;
+
+@media not (forced-colors) {
+  .close-icon:hover {
+    background-color: revert;
+  }
+}
+
+.close-icon {
+  border-radius: revert;
+  padding: revert;
+  width: revert;
+  height: revert;
+  outline: revert;
 }
 `
+
+// const fixWidthRoundingUp = // Zen's sidebar tends to have non-integer width (like 356.667), but the sidebery frame's width is a rounded version, causing it to be cut off by a fraction of a pixel
+//     `
+// html {
+//     border: 4px solid red;
+// }
+// `
 
 
 const zenStylesByDefault = // fixes bug #4
     `
-    #root.root {
-        --general-border-radius: var(--zen-border-radius);
+    #root {
+    --general-border-radius: var(--zen-border-radius);
+	--s-frame-bg: var(--zen-themed-toolbar-bg-transparent);
+	--s-frame-fg: inherit;
+	--s-toolbar-bg: var(--zen-themed-toolbar-bg);
+	--s-toolbar-fg: inherit;
+	--s-act-el-bg: rgba(106,106,120,0.7);
+	--s-act-el-fg: rgb(255,255,255);
+	--s-popup-bg: var(--arrowpanel-background);
+	--s-popup-fg: var(--arrowpanel-color);
+	--s-popup-border: var(--zen-colors-border);
+    --nav-btn-fg: var(--toolbarbutton-icon-fill);
+
+    --nav-btn-width: calc(2 * var(--toolbarbutton-inner-padding) + 16px);
+    --nav-btn-height: calc(2 * var(--toolbarbutton-inner-padding) + 16px);
+    --nav-btn-border-radius: var(--toolbarbutton-border-radius);
+    }
+    .SubPanel {
+    	--s-frame-bg: var(--zen-themed-toolbar-bg-transparent);
+	    --s-frame-fg: inherit;
+    }
+    body {
+        color: var(--toolbox-textcolor);
+        &:-moz-window-inactive {
+            color: var(--toolbox-textcolor-inactive);
+        }
     }
 `
 
@@ -188,7 +222,7 @@ function afterSideberyLoads(win) {
         sidebery_browser
     );
 
-    const zenStylesheets = [...win.document.styleSheets].map((styleSheet) => { return styleSheet.href; })
+    const zenStylesheets = [...win.document.styleSheets].map((styleSheet) => { return styleSheet.href; });
     const allStyleModsAsDataURLs = allStyleMods.map((css) => `data:text/css,${encodeURIComponent(css)}`);
 
     let stylesheets = [...zenStylesheets, "chrome://browser/content/extension.css", ...allStyleModsAsDataURLs].filter(sheet => sheet); //discard nulls
