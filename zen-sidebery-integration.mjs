@@ -93,6 +93,22 @@ function loadSideberyPanel(win) {
     :root {
     --zen-workspace-indicator-height: 40px; /* Enable side by side comparison of tabs */
     }
+
+    /* Future feature: overflow when hovering over collapsed toolbar
+    #navigator-toolbox:not([zen-sidebar-expanded="true"]):not([zen-right-side="true"]):hover {
+
+        max-width: 250px !important;
+        z-index: var(--browser-area-z-index-toolbox-while-animating);
+        margin-right: calc(0px - var(--tabbar-overlap));
+        --tabbar-overlap: calc(250px - var(--zen-toolbox-max-width));
+        padding-right: var(--tabbar-overlap);
+        width: 250px !important;
+
+        & #sidebery {
+            margin-right: calc(0px - var(--tabbar-overlap));
+        }
+    }
+    */
     `;
 
     var style = win.document.createElement('style');
@@ -284,10 +300,9 @@ const zenStylesByDefault = // fixes bug #4
     .fav-icon {
         border-radius: 4px;
     }
-        padding: 0 var(--tab-inline-padding);
 
-    .Tab {
-
+    div.BottomBar, div.bottom-bar-space {
+        display: none; /* Hide for now */
     }
 
 }
@@ -351,7 +366,7 @@ function afterSideberyLoads(win) {
 
     // ignore window close command
     win.sidebery_browser.addEventListener("DOMWindowClose", event => { event.stopPropagation(); });
-    alert("Sidebery Mod Complete");
+    alert("Sidebery Mod Complete!\nShowing side-by-side-preview.\nClick OK to remove original tabs.");
     console.log("6. Sidebery mod complete. Hiding original Zen Tabs...");
     oldTabsContainer = win.document.querySelector("#TabsToolbar-customization-target");
     // Zen's bars are right next to Sidebery's, looks ugly with both - hide Zen's for now, buttons can be moved elsewhere
