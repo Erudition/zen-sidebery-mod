@@ -57,19 +57,17 @@ async function setupSideberyPanel(win) {
 
     // time to insert, <browser> will be constructed
     oldTabsContainer = win.document.querySelector("#TabsToolbar-customization-target");
-    oldTabsContainer.insertAdjacentElement('beforebegin', win.sidebery_browser);
+    oldTabsContainer.insertAdjacentElement('afterend', win.sidebery_browser);
     console.log("2. Sidebery's browser frame element has been set up.");
     await awaitFrameLoader;
-    oldTabsContainer.style.display = "none";
+    //oldTabsContainer.style.display = "none";
     loadSideberyPanel(win);
 }
 
 function loadSideberyPanel(win) {
     console.log("3. Loading Sidebery into frame...");
 
-    // Zen's bars are right next to Sidebery's, looks ugly with both - hide Zen's for now, buttons can be moved elsewhere
-    win.document.getElementById("zen-sidebar-bottom-buttons").style.display = "none";
-    win.document.getElementById("zen-sidebar-top-buttons").style.display = "none";
+
 
     // System Principal should let Sidebery do anything chrome can do, so it's legit native
     let triggeringPrincipal = Services.scriptSecurityManager.getSystemPrincipal();
@@ -91,6 +89,10 @@ function loadSideberyPanel(win) {
             display: revert; /* was grid for compact mode */
         }
     }
+
+    :root {
+    --zen-workspace-indicator-height: 40px; /* Enable side by side comparison of tabs */
+    }
     `;
 
     var style = win.document.createElement('style');
@@ -107,17 +109,64 @@ function loadSideberyPanel(win) {
 }
 
 
-// function getZenCSSVariables() {
-//     // TODO see if this is needed for dynamic updates
-//     const rootStyle = getComputedStyle(window.document.getElementById("tabbrowser-tabs"));
-//     let css = '';
-//     for (const property of rootStyle) {
-//         if (property.startsWith("--zen-")) {
-//             css += `${property}: ${rootStyle.getPropertyValue(property).trim()};\n`;
-//         }
-//     }
-//     return `:root {\n${css}\n}`;
-// }
+function getZenCSSVariables() {
+    // TODO see if this is needed for dynamic updates
+    const rootStyle = getComputedStyle(window.document.getElementById("tabbrowser-tabs"));
+    let css = '';
+    for (const property of rootStyle) {
+        if (property.startsWith("--")) {
+            css += `${property}: ${rootStyle.getPropertyValue(property).trim()};\n`;
+        }
+    }
+    return `:root {\n${css}\n}`;
+}
+
+const adaptiveColorIntegration =
+    `
+#nav-bar, #urlbar-background, #zen-sidebar-web-panel {
+    background-color:  var(--lwt-accent-color) !important;
+}
+
+panel {
+    --panel-background: var(--lwt-accent-color) !important;
+}
+
+#browser {
+        background-image: none !important;
+        background-color:  var(--lwt-accent-color) !important;
+        opacity: 1 !important;
+}
+
+:root:not([inDOMFullscreen="true"]):not([chromehidden~="location"]):not([chromehidden~="toolbar"]) {
+    & #tabbrowser-tabbox #tabbrowser-tabpanels .browserSidebarContainer {
+      box-shadow: 0 0 1px 1px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)) !important;
+    }
+  }
+
+#zen-sidebar-web-panel {
+    border: none !important;
+    box-shadow: 0 0 1px 1px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)) !important;
+}
+
+#zen-sidebar-web-header, #zen-sidebar-panels-wrapper {
+    border-bottom: 0 !important;
+    border-top: 0 !important;
+}
+
+@media (-moz-bool-pref: "zen.view.compact") {
+    :root:not([customizing]):not([inDOMFullscreen="true"]) {
+      @media (-moz-bool-pref: "zen.view.compact.hide-tabbar") {
+        & #titlebar {
+          background: var(--lwt-accent-color) !important;
+        }
+      }
+    }
+}
+
+#titlebar {
+  background: var(--lwt-accent-color) !important;
+}
+`
 
 
 const fixNoGrabbingCursorOnDrag = // attempt to fix bug #3
@@ -211,6 +260,16 @@ const zenStylesByDefault = // fixes bug #4
     --nav-btn-width: calc(2 * var(--toolbarbutton-inner-padding) + 16px);
     --nav-btn-height: calc(2 * var(--toolbarbutton-inner-padding) + 16px);
     --nav-btn-border-radius: var(--toolbarbutton-border-radius);
+    --tabs-activated-bg: var(--tab-selected-bgcolor);
+    --tabs-activated-shadow: var(--tab-selected-shadow);
+    --tabs-activated-fg: var(--tab-selected-textcolor);
+    --tabs-border-radius: var(--border-radius-medium);
+    --tab-hover-background-color: var(--active-el-overlay-hover-bg);
+    --tabs-font: message-box;
+    --tabs-height: var(--tab-min-height);
+    --tabs-margin: calc(var(--tab-block-margin) * 2);
+
+
     }
     .SubPanel {
     	--s-frame-bg: var(--zen-themed-toolbar-bg-transparent);
@@ -222,11 +281,20 @@ const zenStylesByDefault = // fixes bug #4
             color: var(--toolbox-textcolor-inactive);
         }
     }
+    .fav-icon {
+        border-radius: 4px;
+    }
+        padding: 0 var(--tab-inline-padding);
+
+    .Tab {
+
+    }
+
+}
 `
 
 
-
-allStyleMods = [fixNoGrabbingCursorOnDrag, transparentByDefault, fixInheritBadBrowserStyles, zenStylesByDefault, handleCompactMode]
+allStyleMods = [getZenCSSVariables(), fixNoGrabbingCursorOnDrag, transparentByDefault, fixInheritBadBrowserStyles, zenStylesByDefault, handleCompactMode]
 
 function afterSideberyLoads(win) {
     console.log("5. Sidebery has loaded! Inserting scripts and styles.");
@@ -283,8 +351,13 @@ function afterSideberyLoads(win) {
 
     // ignore window close command
     win.sidebery_browser.addEventListener("DOMWindowClose", event => { event.stopPropagation(); });
-
-    console.log("6. Sidebery mod complete.");
+    alert("Sidebery Mod Complete");
+    console.log("6. Sidebery mod complete. Hiding original Zen Tabs...");
+    oldTabsContainer = win.document.querySelector("#TabsToolbar-customization-target");
+    // Zen's bars are right next to Sidebery's, looks ugly with both - hide Zen's for now, buttons can be moved elsewhere
+    //win.document.getElementById("zen-sidebar-bottom-buttons").style.display = "none";
+    win.document.getElementById("zen-sidebar-top-buttons").style.display = "none";
+    oldTabsContainer.style.display = "none";
 }
 
 function sideberyMissing(win) {
